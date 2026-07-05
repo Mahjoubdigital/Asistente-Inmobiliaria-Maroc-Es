@@ -404,6 +404,7 @@ const steps = [
       "Local comercial / Oficina",
       "Plaza de garaje"
     ],
+    strict: true,
     save: "tipo"
   },
   {
@@ -487,7 +488,6 @@ const steps = [
     bot: "¿Algún comentario o requisito específico? Por ejemplo: cerca del centro, con licencia turística, vista al mar...",
     type: "chips",
     options: ["Ninguno"],
-    allowText: true,
     save: "comentarios"
   },
   {
@@ -513,6 +513,7 @@ const steps = [
     bot: "Por último: ¿aceptas el tratamiento de tus datos para recibir ofertas inmobiliarias y asesoría especializada? Garantizamos la confidencialidad de tu perfil.",
     type: "chips",
     options: ["Sí, acepto", "No acepto"],
+    strict: true,
     save: "privacidad"
   }
 ];
@@ -576,7 +577,7 @@ function hideTyping() {
   if (t) t.remove();
 }
 
-function renderChips(options, keepTextEnabled) {
+function renderChips(options, strict) {
   chipsBox.innerHTML = "";
   options.forEach(opt => {
     const chip = document.createElement("button");
@@ -585,12 +586,12 @@ function renderChips(options, keepTextEnabled) {
     chip.addEventListener("click", () => submitAnswer(opt));
     chipsBox.appendChild(chip);
   });
-  if (keepTextEnabled) {
-    input.disabled = false;
-    input.placeholder = "Escribe tu respuesta o elige una opción...";
-  } else {
+  if (strict) {
     input.disabled = true;
     input.placeholder = "Elige una opción arriba...";
+  } else {
+    input.disabled = false;
+    input.placeholder = "Escribe tu respuesta o elige una opción...";
   }
 }
 
@@ -613,7 +614,7 @@ function runStep() {
     addMessage(text, "bot");
     if (step.type === "chips") {
       const options = typeof step.options === "function" ? step.options(data) : step.options;
-      renderChips(options, step.allowText);
+      renderChips(options, step.strict);
     }
   }, 500);
 }
