@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente Inmobiliario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#EDEAE2;
+    --ink:#23282A;
+    --ink-soft:#5B615F;
+    --brass:#A97D4B;
+    --brass-dark:#8C6539;
+    --sage:#4F6B5C;
+    --sage-soft:#E4ECE8;
+    --line:#DEDACE;
+    --radius:16px;
+    --shadow: 0 18px 40px rgba(35,40,42,0.16);
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    font-family:'Work Sans', sans-serif;
+    background:transparent;
+  }
+
+  /* ---------- Botón flotante ---------- */
+  #ai-launcher{
+    position:fixed;
+    bottom:24px;
+    right:24px;
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    background:var(--ink);
+    border:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:var(--shadow);
+    z-index:9998;
+    transition:transform .25s ease, background .25s ease;
+  }
+  #ai-launcher:hover{ transform:translateY(-2px); background:#12181A; }
+  #ai-launcher svg{ width:26px; height:26px; }
+
+  #ai-launcher .badge{
+    position:absolute;
+    top:-4px; right:-4px;
+    width:14px; height:14px;
+    background:var(--brass);
+    border-radius:50%;
+    border:2px solid #fff;
+  }
+
+  /* ---------- Panel del chat ---------- */
+  #ai-panel{
+    position:fixed;
+    bottom:98px;
+    right:24px;
+    width:370px;
+    max-width:calc(100vw - 32px);
+    height:560px;
+    max-height:calc(100vh - 140px);
+    background:var(--bg);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    opacity:0;
+    transform:translateY(16px) scale(.98);
+    pointer-events:none;
+    transition:opacity .22s ease, transform .22s ease;
+    z-index:9999;
+    border:1px solid var(--line);
+  }
+  #ai-panel.open{
+    opacity:1;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+  }
+
+  /* Header */
+  #ai-header{
+    background:var(--ink);
+    color:#fff;
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-shrink:0;
+  }
+  #ai-header .avatar{
+    width:38px; height:38px;
+    border-radius:50%;
+    background:var(--brass);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:16px;
+    flex-shrink:0;
+    position:relative;
+  }
+  #ai-header .avatar::after{
+    content:"";
+    position:absolute;
+    bottom:-1px; right:-1px;
+    width:9px; height:9px;
+    background:#5FD08A;
+    border-radius:50%;
+    border:2px solid var(--ink);
+  }
+  #ai-header .titles{ line-height:1.25; }
+  #ai-header .titles .name{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:15.5px;
+  }
+  #ai-header .titles .status{
+    font-size:12px;
+    color:#C9CFCC;
+  }
+  #ai-close{
+    margin-left:auto;
+    background:none;
+    border:none;
+    color:#C9CFCC;
+    cursor:pointer;
+    padding:4px;
+    line-height:0;
+  }
+  #ai-close:hover{ color:#fff; }
+
+  /* Hilo de mensajes */
+  #ai-thread{
+    flex:1;
+    overflow-y:auto;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    background:
+      linear-gradient(var(--panel), var(--panel));
+    background-color:#FBFAF7;
+  }
+  #ai-thread::-webkit-scrollbar{ width:6px; }
+  #ai-thread::-webkit-scrollbar-thumb{ background:#DAD5C8; border-radius:3px; }
+
+  .msg{
+    max-width:82%;
+    padding:10px 13px;
+    border-radius:14px;
+    font-size:13.5px;
+    line-height:1.5;
+    animation:rise .2s ease;
+  }
+  @keyframes rise{
+    from{ opacity:0; transform:translateY(6px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .msg.bot{
+    background:#fff;
+    border:1px solid var(--line);
+    color:var(--ink);
+    align-self:flex-start;
+    border-bottom-left-radius:4px;
+  }
+  .msg.user{
+    background:var(--sage);
+    color:#fff;
+    align-self:flex-end;
+    border-bottom-right-radius:4px;
+  }
+  .msg.summary{
+    background:#fff;
+    border:1px solid var(--brass);
+    color:var(--ink);
+    align-self:stretch;
+    max-width:100%;
+    white-space:pre-line;
+    font-size:13px;
+  }
+
+  .typing{
+    align-self:flex-start;
+    display:flex;
+    gap:4px;
+    padding:12px 14px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    border-bottom-left-radius:4px;
+  }
+  .typing span{
+    width:6px; height:6px;
+    background:#B9BEBB;
+    border-radius:50%;
+    animation:bounce 1.1s infinite ease-in-out;
+  }
+  .typing span:nth-child(2){ animation-delay:.15s; }
+  .typing span:nth-child(3){ animation-delay:.3s; }
+  @keyframes bounce{
+    0%,60%,100%{ transform:translateY(0); opacity:.5; }
+    30%{ transform:translateY(-4px); opacity:1; }
+  }
+
+  /* Chips de respuesta rápida */
+  #ai-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:0 18px 12px;
+    background:#FBFAF7;
+    flex-shrink:0;
+  }
+  .chip{
+    border:1px solid var(--brass);
+    color:var(--brass-dark);
+    background:#fff;
+    padding:7px 13px;
+    border-radius:999px;
+    font-size:12.5px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .chip:hover{ background:var(--brass); color:#fff; }
+
+  /* Área de entrada */
+  #ai-inputbar{
+    display:flex;
+    gap:8px;
+    padding:12px 14px;
+    border-top:1px solid var(--line);
+    background:#fff;
+    flex-shrink:0;
+  }
+  #ai-input{
+    flex:1;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    font-family:inherit;
+    font-size:13.5px;
+    outline:none;
+    color:var(--ink);
+  }
+  #ai-input:focus{ border-color:var(--sage); }
+  #ai-send{
+    width:40px;
+    background:var(--ink);
+    border:none;
+    border-radius:10px;
+    color:#fff;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    transition:background .15s ease;
+  }
+  #ai-send:hover{ background:var(--brass-dark); }
+  #ai-send svg{ width:16px; height:16px; }
+
+  /* Botón final de WhatsApp */
+  .wa-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    margin-top:10px;
+    background:#25D366;
+    color:#fff;
+    text-decoration:none;
+    font-weight:600;
+    font-size:13.5px;
+    padding:11px 14px;
+    border-radius:10px;
+    transition:filter .15s ease;
+  }
+  .wa-btn:hover{ filter:brightness(1.05); }
+
+  .keyhole-divider{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:var(--ink-soft);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    margin:4px 0;
+  }
+  .keyhole-divider::before, .keyhole-divider::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+
+  @media (max-width:420px){
+    #ai-panel{
+      right:16px; left:16px; width:auto; bottom:88px;
+    }
+    #ai-launcher{ right:16px; bottom:16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= BOTÓN FLOTANTE ================= -->
+<button id="ai-launcher" aria-label="Abrir asistente inmobiliario">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#EDEAE2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16v13H7l-3 3V4z"></path>
+    <circle cx="9" cy="10.5" r="1" fill="#EDEAE2" stroke="none"></circle>
+    <circle cx="13" cy="10.5" r="1" fill="#EDEAE2" stroke="none"></circle>
+    <circle cx="17" cy="10.5" r="1" fill="#EDEAE2" stroke="none"></circle>
+  </svg>
+  <span class="badge"></span>
+</button>
+
+<!-- ================= PANEL DEL CHAT ================= -->
+<div id="ai-panel">
+  <div id="ai-header">
+    <div class="avatar">IN</div>
+    <div class="titles">
+      <div class="name" id="ai-agency-name">Asistente Inmobiliario</div>
+      <div class="status">Normalmente respondemos en minutos</div>
+    </div>
+    <button id="ai-close" aria-label="Cerrar chat">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div id="ai-thread"></div>
+  <div id="ai-chips"></div>
+
+  <div id="ai-inputbar">
+    <input id="ai-input" type="text" placeholder="Escribe tu respuesta..." autocomplete="off">
+    <button id="ai-send" aria-label="Enviar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN — edita estos valores para tu inmobiliaria
+   ========================================================= */
+const CONFIG = {
+  agencyName: "Inmobiliaria Maroc",
+  whatsappNumber: "212690157092" // formato internacional, sin "+" ni espacios (Marruecos)
+};
+
+/* =========================================================
+   ESTADO Y FLUJO DE CONVERSACIÓN
+   ========================================================= */
+const data = {};
+document.getElementById("ai-agency-name").textContent = `Asistente de ${CONFIG.agencyName}`;
+
+const steps = [
+  {
+    key: "interes",
+    bot: `¡Hola! Soy el asistente de ${CONFIG.agencyName} 👋 ¿En qué puedo ayudarte hoy?`,
+    type: "chips",
+    options: [
+      "Comprar propiedad",
+      "Vender mi propiedad",
+      "Alquilar",
+      "Inversión inmobiliaria",
+      "Asesoría legal/trámites"
+    ],
+    save: "interes"
+  },
+  {
+    key: "zona",
+    bot: "¿Qué zona de Marruecos te interesa?",
+    type: "chips",
+    options: [
+      "Tánger / Norte",
+      "Rabat / Costa Atlántica",
+      "Marrakech / Interior",
+      "Agadir / Sur",
+      "Casablanca / Económica",
+      "Otra (especifica)"
+    ],
+    save: "zona"
+  },
+  {
+    key: "tipo",
+    bot: "¿Qué tipo de propiedad te interesa?",
+    type: "chips",
+    options: [
+      "Apartamento moderno",
+      "Villa / Chalet",
+      "Riad / Casa tradicional",
+      "Terreno urbano/rústico",
+      "Local comercial / Oficina",
+      "Plaza de garaje"
+    ],
+    save: "tipo"
+  },
+  {
+    key: "presupuesto",
+    bot: (d) => (d.interes === "Vender mi propiedad"
+      ? "¿Qué precio esperas obtener por tu propiedad?"
+      : "¿Cuál es tu presupuesto aproximado?"),
+    type: "chips",
+    options: [
+      "Menos de 50.000€",
+      "50.000€ - 150.000€",
+      "150.000€ - 300.000€",
+      "Más de 300.000€",
+      "A convenir"
+    ],
+    save: "presupuesto"
+  },
+  {
+    key: "metros",
+    bot: "¿Qué superficie aproximada buscas (en m²)?",
+    type: "chips",
+    options: (d) => (d.tipo === "Terreno urbano/rústico"
+      ? ["Menos de 500 m²", "500-1000 m²", "1000-1500 m²", "1500-2500 m²", "Más de 2500 m²"]
+      : ["Menos de 60 m²", "60-100 m²", "100-150 m²", "150-250 m²", "Más de 250 m²"]),
+    save: "metros"
+  },
+  {
+    key: "terraza",
+    bot: "¿Te gustaría que tuviera terraza o jardín?",
+    type: "chips",
+    options: ["Sí", "No", "Indiferente"],
+    save: "terraza"
+  },
+  {
+    key: "amueblado",
+    bot: "¿Lo prefieres amueblado?",
+    type: "chips",
+    options: ["Sí", "No", "Indiferente"],
+    save: "amueblado"
+  },
+  {
+    key: "primeraLinea",
+    bot: "¿Buscas primera línea de playa o montaña?",
+    type: "chips",
+    options: ["Playa", "Montaña", "Cualquiera de las dos", "No es prioritario"],
+    save: "primeraLinea"
+  },
+  {
+    key: "plazo",
+    bot: "¿Para cuándo tienes previsto operar?",
+    type: "chips",
+    options: [
+      "Inmediato (menos de 3 meses)",
+      "Corto plazo (3-6 meses)",
+      "Largo plazo (más de 6 meses)",
+      "Solo estoy mirando el mercado"
+    ],
+    save: "plazo"
+  },
+  {
+    key: "gestion",
+    bot: "¿Qué tipo de gestión necesitas?",
+    type: "chips",
+    options: [
+      "Búsqueda + legal + reformas",
+      "Solo búsqueda de propiedades",
+      "Solo asesoría legal/fiscal",
+      "Ya tengo abogado, solo inmuebles"
+    ],
+    save: "gestion"
+  },
+  {
+    key: "nacionalidad",
+    bot: "¿Cuál es tu nacionalidad o residencia fiscal? Nos ayuda a preparar los trámites bancarios y fiscales.",
+    type: "chips",
+    options: ["España / UE", "Latinoamérica", "Marruecos", "Otro país"],
+    save: "nacionalidad"
+  },
+  {
+    key: "comentarios",
+    bot: "¿Algún comentario o requisito específico? Por ejemplo: cerca del centro, con licencia turística, vista al mar...",
+    type: "chips",
+    options: ["Ninguno"],
+    allowText: true,
+    save: "comentarios"
+  },
+  {
+    key: "nombre",
+    bot: "Genial, ya casi terminamos. Para que un agente pueda contactarte, ¿cuál es tu nombre completo?",
+    type: "text",
+    save: "nombre"
+  },
+  {
+    key: "telefono",
+    bot: (d) => `Encantado, ${d.nombre.split(" ")[0]}. ¿Cuál es tu teléfono de contacto (WhatsApp)?`,
+    type: "text",
+    save: "telefono"
+  },
+  {
+    key: "email",
+    bot: "¿Y tu correo electrónico?",
+    type: "text",
+    save: "email"
+  },
+  {
+    key: "privacidad",
+    bot: "Por último: ¿aceptas el tratamiento de tus datos para recibir ofertas inmobiliarias y asesoría especializada? Garantizamos la confidencialidad de tu perfil.",
+    type: "chips",
+    options: ["Sí, acepto", "No acepto"],
+    save: "privacidad"
+  }
+];
+
+let stepIndex = 0;
+let conversationEnded = false;
+
+/* =========================================================
+   REFERENCIAS DOM
+   ========================================================= */
+const launcher = document.getElementById("ai-launcher");
+const panel = document.getElementById("ai-panel");
+const closeBtn = document.getElementById("ai-close");
+const thread = document.getElementById("ai-thread");
+const chipsBox = document.getElementById("ai-chips");
+const input = document.getElementById("ai-input");
+const sendBtn = document.getElementById("ai-send");
+
+let started = false;
+
+launcher.addEventListener("click", () => {
+  panel.classList.toggle("open");
+  if (!started && panel.classList.contains("open")) {
+    started = true;
+    runStep();
+  }
+});
+closeBtn.addEventListener("click", () => panel.classList.remove("open"));
+sendBtn.addEventListener("click", handleTextSubmit);
+input.addEventListener("keydown", (e) => { if (e.key === "Enter") handleTextSubmit(); });
+
+/* =========================================================
+   LÓGICA DE CONVERSACIÓN
+   ========================================================= */
+function addMessage(text, who) {
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.textContent = text;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function addSummaryMessage(html) {
+  const div = document.createElement("div");
+  div.className = "msg summary";
+  div.innerHTML = html;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function showTyping() {
+  const div = document.createElement("div");
+  div.className = "typing";
+  div.id = "typing-indicator";
+  div.innerHTML = "<span></span><span></span><span></span>";
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+function hideTyping() {
+  const t = document.getElementById("typing-indicator");
+  if (t) t.remove();
+}
+
+function renderChips(options, keepTextEnabled) {
+  chipsBox.innerHTML = "";
+  options.forEach(opt => {
+    const chip = document.createElement("button");
+    chip.className = "chip";
+    chip.textContent = opt;
+    chip.addEventListener("click", () => submitAnswer(opt));
+    chipsBox.appendChild(chip);
+  });
+  if (keepTextEnabled) {
+    input.disabled = false;
+    input.placeholder = "Escribe tu respuesta o elige una opción...";
+  } else {
+    input.disabled = true;
+    input.placeholder = "Elige una opción arriba...";
+  }
+}
+
+function clearChips() {
+  chipsBox.innerHTML = "";
+  input.disabled = false;
+  input.placeholder = "Escribe tu respuesta...";
+}
+
+function runStep() {
+  const step = steps[stepIndex];
+  if (!step) { finishConversation(); return; }
+
+  clearChips();
+  showTyping();
+
+  setTimeout(() => {
+    hideTyping();
+    const text = typeof step.bot === "function" ? step.bot(data) : step.bot;
+    addMessage(text, "bot");
+    if (step.type === "chips") {
+      const options = typeof step.options === "function" ? step.options(data) : step.options;
+      renderChips(options, step.allowText);
+    }
+  }, 500);
+}
+
+function handleTextSubmit() {
+  const val = input.value.trim();
+  if (!val) return;
+  submitAnswer(val);
+  input.value = "";
+}
+
+function endConversation(placeholder) {
+  conversationEnded = true;
+  chipsBox.innerHTML = "";
+  input.disabled = true;
+  input.placeholder = placeholder;
+  sendBtn.disabled = true;
+  sendBtn.style.opacity = "0.5";
+  sendBtn.style.cursor = "not-allowed";
+}
+
+function submitAnswer(value) {
+  if (conversationEnded) return;
+  const step = steps[stepIndex];
+
+  // Caso especial: al elegir "Otra" zona, pedimos que la especifique antes de avanzar
+  if (step.key === "zona" && value.startsWith("Otra") && !step._awaitingDetail) {
+    addMessage(value, "user");
+    step._awaitingDetail = true;
+    clearChips();
+    showTyping();
+    setTimeout(() => {
+      hideTyping();
+      addMessage("¿En qué zona en concreto?", "bot");
+    }, 450);
+    return;
+  }
+
+  addMessage(value, "user");
+  data[step.save] = value;
+
+  // Caso especial: para terrenos, se pregunta primero la superficie y después el presupuesto,
+  // y se eliminan preguntas que no aplican a un terreno (terraza/jardín, amueblado)
+  if (step.key === "tipo" && value === "Terreno urbano/rústico") {
+    const idxPresupuesto = steps.findIndex(s => s.key === "presupuesto");
+    const idxMetros = steps.findIndex(s => s.key === "metros");
+    if (idxPresupuesto !== -1 && idxMetros !== -1 && idxPresupuesto < idxMetros) {
+      [steps[idxPresupuesto], steps[idxMetros]] = [steps[idxMetros], steps[idxPresupuesto]];
+    }
+    for (const key of ["terraza", "amueblado"]) {
+      const idx = steps.findIndex(s => s.key === key);
+      if (idx !== -1) steps.splice(idx, 1);
+    }
+  }
+
+  // Caso especial: si no acepta la política de privacidad, no se envían datos
+  if (step.key === "privacidad" && value.toLowerCase().startsWith("no")) {
+    clearChips();
+    showTyping();
+    setTimeout(() => {
+      hideTyping();
+      addMessage("Entendido, no utilizaremos tus datos. Si cambias de opinión, aquí estaré para ayudarte. 🙂", "bot");
+      endConversation("Conversación finalizada");
+    }, 500);
+    return;
+  }
+
+  clearChips();
+  stepIndex++;
+  runStep();
+}
+
+function finishConversation() {
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    addMessage("¡Gracias! Esto es lo que le voy a pasar a nuestro equipo. Revísalo y pulsa el botón para confirmarlo por WhatsApp.", "bot");
+
+    const encabezados = {
+      "Comprar propiedad": "COMPRA",
+      "Vender mi propiedad": "VENTA",
+      "Alquilar": "ALQUILER",
+      "Inversión inmobiliaria": "INVERSIÓN",
+      "Asesoría legal/trámites": "ASESORÍA LEGAL"
+    };
+    const tipoSolicitud = encabezados[data.interes] || "PROPIEDAD";
+
+    const esTerreno = data.tipo === "Terreno urbano/rústico";
+
+    const lineas = [
+      `📋 *NUEVA SOLICITUD DE ${tipoSolicitud}*`,
+      `*Nombre:* ${data.nombre || "-"}`,
+      `*Teléfono:* ${data.telefono || "-"}`,
+      `*Email:* ${data.email || "-"}`,
+      `*Interés:* ${data.interes || "-"}`,
+      `*Zona:* ${data.zona || "-"}`,
+      `*Tipo de propiedad:* ${data.tipo || "-"}`,
+      `*Presupuesto/Precio:* ${data.presupuesto || "-"}`,
+      `*Superficie:* ${data.metros || "-"}`,
+      ...(esTerreno ? [] : [
+        `*Terraza/Jardín:* ${data.terraza || "-"}`,
+        `*Amueblado:* ${data.amueblado || "-"}`
+      ]),
+      `*Primera línea playa/montaña:* ${data.primeraLinea || "-"}`,
+      `*Plazo estimado:* ${data.plazo || "-"}`,
+      `*Gestión requerida:* ${data.gestion || "-"}`,
+      `*Nacionalidad/Residencia fiscal:* ${data.nacionalidad || "-"}`,
+      `*Comentarios:* ${data.comentarios || "-"}`,
+      `*Consentimiento datos:* ${data.privacidad || "-"}`
+    ];
+
+    const resumen = lineas.join("\n");
+
+    const encoded = encodeURIComponent(resumen);
+    const waLink = `https://wa.me/${CONFIG.whatsappNumber}?text=${encoded}`;
+
+    addSummaryMessage(
+      resumen.replace(/\*(.+?)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>") +
+      `<div class="keyhole-divider">Un clic para confirmar</div>` +
+      `<a class="wa-btn" href="${waLink}" target="_blank" rel="noopener">
+        ${waIcon()} Enviar resumen por WhatsApp
+      </a>`
+    );
+
+    addMessage(`En breve un agente se pondrá en contacto contigo. ¡Gracias por confiar en ${CONFIG.agencyName}!`, "bot");
+    endConversation("Conversación finalizada");
+  }, 600);
+}
+
+function waIcon() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" style="vertical-align:-3px"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.35 5.06L2 22l5.06-1.33A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.6 0-3.1-.43-4.4-1.2l-.32-.19-3 .79.8-2.93-.2-.3A7.94 7.94 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8zm4.4-5.9c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.44-1.34-1.68-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z"/></svg>`;
+}
+</script>
+</body>
+</html>
